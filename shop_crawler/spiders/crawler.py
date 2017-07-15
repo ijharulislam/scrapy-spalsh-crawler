@@ -3,7 +3,7 @@ from scrapy.linkextractors import LinkExtractor
 
 
 shop_root_url = 'https://www.saint-marc-hd.com/b/saintmarc/?brand_type=CFE'
-via_page_url_regex = 'b/saintmarc/attr/\?kencode=(\d+)&brand_type=CFE'
+via_page_url_regex = ['b/saintmarc/attr/\?kencode=(\d+)&brand_type=CFE']
 single_shop_url_regex = '/b/saintmarc/info/(¥d+)/?brand_type=CFE'
 
 class ShopSpider(scrapy.Spider):
@@ -17,7 +17,7 @@ class ShopSpider(scrapy.Spider):
             yield scrapy.Request(url=url, callback=self.parse)
 
     def parse(self, response):
-        le = LinkExtractor(allow=[r"%s"%via_page_url_regex]) # empty for getting everything, check different options on documentation        
+        le = LinkExtractor(allow= [r"%s"%regex for regex in via_page_url_regex]) # empty for getting everything, check different options on documentation        
         print("tag +++++++++++ tag")
         print(response)
         for link in le.extract_links(response):
