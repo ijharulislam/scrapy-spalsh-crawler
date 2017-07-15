@@ -1,4 +1,5 @@
 import scrapy
+from scrapy.linkextractors import LinkExtractor
 
 
 class ShopSpider(scrapy.Spider):
@@ -6,16 +7,14 @@ class ShopSpider(scrapy.Spider):
 
     def start_requests(self):
         urls = [
-            'http://quotes.toscrape.com/page/1/',
-            'http://quotes.toscrape.com/page/2/',
+            'https://www.saint-marc-hd.com/b/saintmarc/?brand_type=CFE'
         ]
         for url in urls:
             yield scrapy.Request(url=url, callback=self.parse)
 
     def parse(self, response):
+        le = LinkExtractor() # empty for getting everything, check different options on documentation        
+        print("tag +++++++++++ tag")
         print(response)
-        page = response.url.split("/")[-2]
-        filename = 'quotes-%s.html' % page
-        with open(filename, 'wb') as f:
-            f.write(response.body)
-        self.log('Saved file %s' % filename)
+        for link in le.extract_links(response):
+            print("link found",link)
