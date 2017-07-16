@@ -1,9 +1,10 @@
+import csv
+import re
 import scrapy
 from scrapy_splash import SplashRequest
 from scrapy.linkextractors import LinkExtractor
-import csv
 from pkg_resources import resource_filename
-import re
+
 file_name = resource_filename('shop_crawler', 'spiders/sample_21site_utf8.csv')
 
 data = []
@@ -24,8 +25,8 @@ class ShopSpider(scrapy.Spider):
     http_user = '59cad0345f804f3faf405a087e3faa5d'
 
     def start_requests(self):
-        for url in data:
-            yield SplashRequest(url['shops_root_url'], self.parse, args={'wait': 0.5}, meta={'via_regex': url["via_page_url_regex"], 'single_regex':url["single_shop_url_regex"]})
+        for shop in data:
+            yield SplashRequest(shop['shops_root_url'], self.parse, args={'wait': 0.5}, meta={'via_regex': shop["via_page_url_regex"], 'single_regex':shop["single_shop_url_regex"]})
 
     def parse(self, response):
         via_regex = response.meta.get('via_regex')
@@ -43,14 +44,15 @@ class ShopSpider(scrapy.Spider):
             le = LinkExtractor()       
         print("tag +++++++++++ tag")
         for link in le.extract_links(response):
-            url = link.url
-            match = re.search(r'%s'%single_regex, url)
+            match = re.search(r'%s'%single_regex, link.url)
             if match:
                 print(single_regex, match.group())
-                yield scrapy.Request(url=link.url, callback=self.parse_single_page)
+                yield scrapy.Request(url=link.url, callback=self.parse_single_page, meta={'url':link.url})
 
     def parse_single_page(self, response):
-            print("Single Pages")
+            url = response.meta.get('url')
+            title = response.css('title::text').extract_first()
+            print("Single Page Title", url, title)
 
 
 
