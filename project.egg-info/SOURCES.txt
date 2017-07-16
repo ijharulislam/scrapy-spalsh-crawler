@@ -1,0 +1,15 @@
+setup.py
+project.egg-info/PKG-INFO
+project.egg-info/SOURCES.txt
+project.egg-info/dependency_links.txt
+project.egg-info/entry_points.txt
+project.egg-info/not-zip-safe
+project.egg-info/top_level.txt
+shop_crawler/__init__.py
+shop_crawler/items.py
+shop_crawler/middlewares.py
+shop_crawler/pipelines.py
+shop_crawler/settings.py
+shop_crawler/spiders/__init__.py
+shop_crawler/spiders/crawler.py
+shop_crawler/spiders/sample_21site_utf8.csv

@@ -2,12 +2,15 @@ import scrapy
 from scrapy_splash import SplashRequest
 from scrapy.linkextractors import LinkExtractor
 import csv
-from pkg_resources import resource_filename
-file_name = resource_filename('shop_crawler', 'spiders/sample_21site_utf8.csv')
+import pkgutil
 
 data = []
 
-with open('%s'%file_name, 'r') as f:
+# csv_file = pkgutil.get_data("shop_crawler", "spiders/sample_21site_utf8.csv")
+from pkg_resources import resource_stream, resource_filename
+file_handle = resource_filename('shop_crawler', 'spiders/sample_21site_utf8.csv')
+
+with open('%s'%file_handle, 'r') as f:
         reader = csv.DictReader(f)
         for row in reader:
             raw_data = {
@@ -17,11 +20,10 @@ with open('%s'%file_name, 'r') as f:
             }
             data.append(raw_data)
 
-print('data', data)
 
 class ShopSpider(scrapy.Spider):
     name = "shops"
-   
+    http_user = '59cad0345f804f3faf405a087e3faa5d'
 
     def start_requests(self):
         for url in data:
