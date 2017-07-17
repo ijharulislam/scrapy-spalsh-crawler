@@ -1,16 +1,17 @@
+import csv
+import re
 import scrapy
 from scrapy_splash import SplashRequest
 from scrapy.linkextractors import LinkExtractor
-import csv
-import pkgutil
+from pkg_resources import resource_filename
+from shop_crawler.items import ShopCrawlerItem
+import sys
+
+file_name = resource_filename('shop_crawler', 'spiders/sample_21site_utf8.csv')
 
 data = []
 
-# csv_file = pkgutil.get_data("shop_crawler", "spiders/sample_21site_utf8.csv")
-from pkg_resources import resource_stream, resource_filename
-file_handle = resource_filename('shop_crawler', 'spiders/sample_21site_utf8.csv')
-
-with open('%s'%file_handle, 'r') as f:
+with open('%s'%file_name, 'r') as f:
         reader = csv.DictReader(f)
         for row in reader:
             raw_data = {
@@ -26,37 +27,40 @@ class ShopSpider(scrapy.Spider):
     http_user = '59cad0345f804f3faf405a087e3faa5d'
 
     def start_requests(self):
-        for url in data:
-            global via_regex
-            via_regex = [url["via_page_url_regex"]]
-            if ';' in via_regex:
-                via_regex = via_regex.split(';')
-            if via_regex =='Null' or via_regex =='null':
-                via_regex = None
-
-            global single_regex
-            single_regex = url["single_shop_url_regex"]
-
-            yield SplashRequest(url['shops_root_url'], self.parse, args={'wait': 0.5})
+        for shop in data:
+            yield SplashRequest(shop['shops_root_url'], self.parse, args={'wait': 0.5}, meta={'via_regex': shop["via_page_url_regex"], 'single_regex':shop["single_shop_url_regex"]})
 
     def parse(self, response):
-        if via_regex:
-            le = LinkExtractor(allow = [r"%s"%regex for regex in via_regex])
+        via_regex = response.meta.get('via_regex')
+        single_regex = response.meta.get('single_regex')
+        if via_regex == "Null":
+            print('via regex single page', via_regex, type(via_regex), via_regex == "Null")
+            le = LinkExtractor(allow = [r"%s"%single_regex])
+            for link in le.extract_links(response):
+                yield scrapy.Request(url=link.url, callback=self.parse_single_page, meta={'url':link.url})
         else:
-            le = LinkExtractor()        
-        print("tag +++++++++++ tag")
-        for link in le.extract_links(response):
-            print("link found", link.url)
-            # yield scrapy.Request(url=link.url, callback=self.parse_via_page)
-
-    def parse_via_page(self, response):
-        print("Via page urls")
+            print("via pages")
+            if ';' in via_regex:
+                via_regex = via_regex.split(';')
+            else:
+                via_regex = [via_regex]
+                
+            if len(via_regex)>0:
+                le = LinkExtractor(allow = [r"%s"%regex for regex in via_regex])
+                for link in le.extract_links(response):
+                    yield scrapy.Request(url=link.url, callback=self.parse_via_pages, meta={'single_regex':single_regex})
+    
+    def parse_via_pages(self, response):
+        single_regex = response.meta.get('single_regex')
         if single_regex:
-            le = LinkExtractor(allow= [r"%s"%single_regex])
-        else:
-            le = LinkExtractor()
-        for link in le.extract_links(response):
-            print("link found In via pages",link.url)
+            le = LinkExtractor(allow = [r"%s"%single_regex])
+            for link in le.extract_links(response):
+                yield scrapy.Request(url=link.url, callback=self.parse_single_page, meta={'url':link.url})
+
+    def parse_single_page(self, response):
+            url = response.meta.get('url')
+            title = response.css('title::text').extract_first()
+            yield ShopCrawlerItem(title=title.strip(), url=url)
 
 
 

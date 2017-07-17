@@ -4,6 +4,8 @@ import scrapy
 from scrapy_splash import SplashRequest
 from scrapy.linkextractors import LinkExtractor
 from pkg_resources import resource_filename
+from shop_crawler.items import ShopCrawlerItem
+import sys
 
 file_name = resource_filename('shop_crawler', 'spiders/sample_21site_utf8.csv')
 
@@ -30,29 +32,35 @@ class ShopSpider(scrapy.Spider):
 
     def parse(self, response):
         via_regex = response.meta.get('via_regex')
-        if ';' in via_regex:
-                via_regex = via_regex.split(';')
-        if via_regex == 'Null' or via_regex =='null' or not via_regex:
-            via_regex = None
-        else:
-            via_regex = [via_regex]
         single_regex = response.meta.get('single_regex')
-
-        if via_regex is not None and len(via_regex)>0:
-            le = LinkExtractor(allow = [r"%s"%regex for regex in via_regex])
+        if via_regex == "Null":
+            print('via regex single page', via_regex, type(via_regex), via_regex == "Null")
+            le = LinkExtractor(allow = [r"%s"%single_regex])
+            for link in le.extract_links(response):
+                yield scrapy.Request(url=link.url, callback=self.parse_single_page, meta={'url':link.url})
         else:
-            le = LinkExtractor()       
-        print("tag +++++++++++ tag")
-        for link in le.extract_links(response):
-            match = re.search(r'%s'%single_regex, link.url)
-            if match:
-                print(single_regex, match.group())
+            print("via pages")
+            if ';' in via_regex:
+                via_regex = via_regex.split(';')
+            else:
+                via_regex = [via_regex]
+                
+            if len(via_regex)>0:
+                le = LinkExtractor(allow = [r"%s"%regex for regex in via_regex])
+                for link in le.extract_links(response):
+                    yield scrapy.Request(url=link.url, callback=self.parse_via_pages, meta={'single_regex':single_regex})
+    
+    def parse_via_pages(self, response):
+        single_regex = response.meta.get('single_regex')
+        if single_regex:
+            le = LinkExtractor(allow = [r"%s"%single_regex])
+            for link in le.extract_links(response):
                 yield scrapy.Request(url=link.url, callback=self.parse_single_page, meta={'url':link.url})
 
     def parse_single_page(self, response):
             url = response.meta.get('url')
             title = response.css('title::text').extract_first()
-            print("Single Page Title", url, title)
+            yield ShopCrawlerItem(title=title.strip(), url=url)
 
 
 

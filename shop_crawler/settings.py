@@ -105,13 +105,6 @@ SPIDER_MIDDLEWARES = {
 DUPEFILTER_CLASS = 'scrapy_splash.SplashAwareDupeFilter'
 HTTPCACHE_STORAGE = 'scrapy_splash.SplashAwareFSCacheStorage'
 
-# from setuptools import setup, find_packages
-# setup(
-#     name='shop_crawler',
-#     version='1.0',
-#     packages=find_packages(),
-#     package_data={
-#         'shop_crawler': ['spiders/*.csv']
-#     },
-#     zip_safe=False,
-# )
+FEED_FORMAT = "csv"
+FEED_EXPORT_FIELDS = ["title", "url"]
+FEED_URI = "file:///tmp/export.csv"
