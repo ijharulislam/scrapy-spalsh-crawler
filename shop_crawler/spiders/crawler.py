@@ -75,14 +75,6 @@ class ShopSpider(scrapy.Spider):
         yield scrapy.Request(self.shops_root_url, self.parse)
 
     def parse(self, response):
-        le = LinkExtractor(allow =(), attrs="onclick")
-        links = [link for link in le.extract_links(response)]
-        link_index = 0
-        if links:
-          for link in links:
-            link_index = link_index + 1
-            yield SplashRequest(url=self.shops_root_url, callback=self.parse_onclick_page,  endpoint='execute', args={'lua_source': script,'link_index':link_index})
-
         if self.via_page_url_regex[0] == "Null":
             if "dunnbrothers" not in self.shops_root_url:
                 le = LinkExtractor(allow = [r"%s"%self.single_shop_url_regex])
@@ -95,67 +87,7 @@ class ShopSpider(scrapy.Spider):
                 le = LinkExtractor(allow = [r"%s"%self.via_page_url_regex[0]])
                 for link in le.extract_links(response):
                     yield SplashRequest(url=link.url, callback=self.parse_via_pages)
-    
-    def parse_onclick_page(self, response):
-      if response.data["results"]:
-        res = response.data["results"][0]["html"]
-        url = response.data["results"][0]["url"]
-        response = HtmlResponse(url=self.shops_root_url, body=response.body)
-
-        le = LinkExtractor(allow =(), attrs="onclick")
-        links = [link for link in le.extract_links(response)]
-        link_index = 1
-        if links:
-          for link in links:
-            link_index = link_index + 1
-            if self.shops_root_url != url:
-              yield SplashRequest(url=self.shops_root_url, callback=self.parse_onclick_via_page,  endpoint='execute', args={'lua_source': script,'link_index':link_index})
-
-        if self.via_page_url_regex[0] == "Null":
-          match = re.match(r'%s'%self.single_shop_url_regex, url)
-          if match:
-            yield SplashRequest(url=url, callback=self.parse_output, meta={'url':url})
-
-        elif len(self.via_page_url_regex) == 1:
-          le = LinkExtractor(allow = [r"%s"%self.via_page_url_regex[0]])
-          for link in le.extract_links(response):
-              yield SplashRequest(url=link.url, callback=self.parse_output, meta={'url':link.url})
-
-        elif len(self.via_page_url_regex) == 2:
-
-          match = re.match(r'%s'%self.via_page_url_regex[0], url)
-          if match:
-            print("Via pages---2")
-            le = LinkExtractor(allow = [r"%s"%self.via_page_url_regex[1]])
-            for link in le.extract_links(response):
-              yield SplashRequest(url=link.url, callback=self.parse_single_onclick_page, endpoint='execute', args={'lua_source': src}, meta={'url':link.url})
-      
-    def parse_onclick_via_page(self, response):
-      response = response.data["results"][0]["html"]
-      url = response.data["results"][0]["url"]
-      response = HtmlResponse(url=self.shops_root_url, body=response)
-
-      if self.via_page_url_regex[0] == "Null":
-        match = re.match(r'%s'%self.single_shop_url_regex, url)
-        if match:
-          yield SplashRequest(url=url, callback=self.parse_output, meta={'url':url})
-
-      if len(self.via_page_url_regex) == 1:
-        match = re.match(r'%s'%self.via_page_url_regex[0], url)
-        if match:
-          yield SplashRequest(url=url, callback=self.parse_output, meta={'url':url})
-
-      if len(self.via_page_url_regex) == 2:
-        match = re.match(r'%s'%self.via_page_url_regex[1], url)
-        if match:
-          yield SplashRequest(url=url, callback=self.parse_single_onclick_page, meta={'url':url})
-    
-    def parse_single_onclick_page(self, response):
-      response = HtmlResponse(url=self.shops_root_url, body=response.body)
-      le = LinkExtractor(allow = [r"%s"%self.single_shop_url_regex])
-      for link in le.extract_links(response):
-        yield SplashRequest(url=link.url, callback=self.parse_output, meta={'url':link.url})
-
+                    
     def parse_ajax_pages(self, response):
         response = HtmlResponse(url=self.shops_root_url, body=response.body)
         le = LinkExtractor(allow = [r"%s"%self.single_shop_url_regex])
