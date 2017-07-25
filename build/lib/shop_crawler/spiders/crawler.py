@@ -13,14 +13,13 @@ from pkg_resources import resource_filename
 from shop_crawler.items import ShopCrawlerItem
 
 
-file_name = resource_filename('shop_crawler', 'spiders/sample_21site_utf8.csv')
+#file_name = resource_filename('shop_crawler', 'spiders/sample_21site_utf8.csv')
 
 
 src = """
 function main(splash)
   local url = splash.args.url
   assert(splash:go(url))
-  splash:wait(5)
   return {
     html = splash:html()
   }
@@ -40,7 +39,7 @@ function main(splash)
     if i == link_index then
         obj = {}
         links[link_index]:click()
-        splash:wait(10)
+        splash:wait(5)
         obj["html"] = splash:html()
         obj["url"] = splash:evaljs("window.location.href")
         results[#results+1] = obj

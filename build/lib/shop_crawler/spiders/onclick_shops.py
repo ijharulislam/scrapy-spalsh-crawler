@@ -97,9 +97,9 @@ class ShopSpider(scrapy.Spider):
           elif len(self.via_page_url_regex) == 1:
               match = re.search(r'%s'%self.via_page_url_regex[0], url)
               if match:
-                all_links = response.xpath('*//a/@href').extract()
+                le = LinkExtractor(allow =())
                 link_index = 0
-                for link in all_links:
+                for link in le.extract_links(response):
                   link_index = link_index + 1
                   yield SplashRequest(url=link.url, callback=self.parse_single_page, endpoint='execute', args={'lua_source': script,'link_index':link_index})
 
@@ -110,9 +110,7 @@ class ShopSpider(scrapy.Spider):
               link_index = 0
               for link in all_links:
                 link_index = link_index + 1
-                match = re.search(r'%s'%self.via_page_url_regex[1], link)
-                if match:
-                  yield SplashRequest(url=url, callback=self.parse_second_via_page, endpoint='execute', args={'lua_source': script,'link_index':link_index})
+                yield SplashRequest(url=url, callback=self.parse_second_via_page, endpoint='execute', args={'lua_source': script,'link_index':link_index})
         
     def parse_second_via_page(self, response):
         if response.data["results"]:
@@ -125,8 +123,7 @@ class ShopSpider(scrapy.Spider):
             link_index = 0
             for link in all_links:
               link_index = link_index + 1
-              match = re.search(r'%s'%self.single_shop_url_regex, link)
-              if match:
+              if "p/shopmap/dtl" in link:
                 yield SplashRequest(url=url, callback=self.parse_single_page, endpoint='execute', args={'lua_source': script,'link_index':link_index})
 
 
@@ -135,6 +132,7 @@ class ShopSpider(scrapy.Spider):
           res = response.data["results"][0]["html"]
           url = response.data["results"][0]["url"]
           title = response.data["results"][0]["title"]
-          match = re.search(r'%s'%self.single_shop_url_regex, url)
-          if match:
+          # match = re.search(r'%s'%self.single_shop_url_regex, url)
+          # if match:
+          if "p/shopmap/dtl" in url:
             yield ShopCrawlerItem(title=title.strip(), url=url)
