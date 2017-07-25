@@ -1,15 +1,56 @@
+import sys
+import json
 import csv
 import re
+
+# Import Scrapy stuff
 import scrapy
+from scrapy.http import HtmlResponse
 from scrapy_splash import SplashRequest
 from scrapy.linkextractors import LinkExtractor
 from pkg_resources import resource_filename
+
 from shop_crawler.items import ShopCrawlerItem
-import sys
-import json
+
 
 file_name = resource_filename('shop_crawler', 'spiders/sample_21site_utf8.csv')
 
+
+src = """
+function main(splash)
+  local url = splash.args.url
+  assert(splash:go(url))
+  splash:wait(5)
+  return {
+    html = splash:html()
+  }
+end
+
+"""
+
+script = """
+treat = require("treat")
+function main(splash)
+  local url = splash.args.url
+  local link_index = splash.args.link_index
+  assert(splash:go(url))
+  local links = splash:select_all('a[onclick]')
+  local results = {}
+  for i, v in ipairs( links ) do
+    if i == link_index then
+        obj = {}
+        links[link_index]:click()
+        splash:wait(10)
+        obj["html"] = splash:html()
+        obj["url"] = splash:evaljs("window.location.href")
+        results[#results+1] = obj
+    end
+  end
+  return {
+    results = treat.as_array(results),
+  }
+end
+"""
 
 class ShopSpider(scrapy.Spider):
     name = "shops"
@@ -19,69 +60,64 @@ class ShopSpider(scrapy.Spider):
       super(ShopSpider, self).__init__(*args, **kwargs)
 
       self.shops_root_url = kwargs.get('Shops_root_url')
-      self.via_page_url_regex = kwargs.get('Via_page_url_regex')
+      via_page_url_regex = kwargs.get('Via_page_url_regex')
+
+      if ";" in via_page_url_regex:
+        self.via_page_url_regex = via_page_url_regex.split(';')
+      elif not via_page_url_regex:
+        self.via_page_url_regex = ["Null"]
+      else:
+        self.via_page_url_regex = [via_page_url_regex]
+
       self.single_shop_url_regex = kwargs.get('Single_shop_url_regex')
 
     def start_requests(self):
-        yield scrapy.Request(self.shops_root_url, self.parse, meta={'root_url': self.shops_root_url, 'via_regex': self.via_page_url_regex, 'single_regex': self.single_shop_url_regex})
-
-    # def start_requests(self):
-    #     for shop in data:
-    #         # yield SplashRequest(shop['shops_root_url'], self.parse, meta={'via_regex': shop["via_page_url_regex"], 'single_regex':shop["single_shop_url_regex"]})
-    #         yield scrapy.Request(shop['shops_root_url'], self.parse, meta={'via_regex': shop["via_page_url_regex"], 'single_regex':shop["single_shop_url_regex"]})
+        yield SplashRequest(self.shops_root_url, self.parse, endpoint='execute', args={'lua_source': src})
 
     def parse(self, response):
-        via_regex = response.meta.get('via_regex')
-        if ';' in via_regex:
-            via_regex = via_regex.split(';')
+        response = HtmlResponse(url=self.shops_root_url, body=response.body)
+        if self.via_page_url_regex[0] == "Null":
+          le = LinkExtractor(allow = [r"%s"%self.single_shop_url_regex])
+          for link in le.extract_links(response):
+              yield SplashRequest(url=link.url, callback=self.parse_output, meta={'url':link.url})
         else:
-            via_regex = [via_regex]
-
-        single_regex = response.meta.get('single_regex')
-
-        le = LinkExtractor(allow =(), attrs='onclick')
-        links = [link.url for link in le.extract_links(response)]
-        if len(links) <0:
-            yield SplashRequest(self.shops_root_url, self.parse_onclick_pages, endpoint='execute', args={'lua_source': script},  meta={'via_regex': self.via_page_url_regex, 'single_regex': self.single_shop_url_regex})
-        else:
-            if via_regex[0] == "Null":
-                le = LinkExtractor(allow = [r"%s"%single_regex])
+            if self.via_page_url_regex:
+                le = LinkExtractor(allow = [r"%s"%self.via_page_url_regex[0]])
                 for link in le.extract_links(response):
-                    yield SplashRequest(url=link.url, callback=self.parse_output, meta={'url':link.url})
-            else:
-                if len(via_regex)>0:
-                    le = LinkExtractor(allow = [r"%s"%via_regex[0]])
-                    for link in le.extract_links(response):
-                        yield SplashRequest(url=link.url, callback=self.parse_via_pages, meta={'single_regex':single_regex, 'via_regex':via_regex})          
+                    yield SplashRequest(url=link.url, callback=self.parse_via_pages, endpoint='execute', args={'lua_source': src})
 
+    def parse_ajax_pages(self, response):
+        response = HtmlResponse(url=self.shops_root_url, body=response.body)
+        le = LinkExtractor(allow = [r"%s"%self.single_shop_url_regex])
+        for link in le.extract_links(response):
+            yield SplashRequest(url=link.url, callback=self.parse_output, meta={'url':link.url})
+        
     def parse_via_pages(self, response):
-        single_regex = response.meta.get('single_regex')
-        via_regex = response.meta.get('via_regex')
-        if len(via_regex) == 1:
-            le = LinkExtractor(allow = [r"%s"%single_regex])
+        response = HtmlResponse(url=self.shops_root_url, body=response.body)
+        if len(self.via_page_url_regex) == 1:
+            le = LinkExtractor(allow = [r"%s"%self.single_shop_url_regex])
             for link in le.extract_links(response):
-                yield SplashRequest(url=link.url, callback=self.parse_output, meta={'url':link.url, 'single_regex':single_regex})
-        if len(via_regex) == 2:
-            le = LinkExtractor(allow = [r"%s"%via_regex[1]])
+                yield SplashRequest(url=link.url, callback=self.parse_output, meta={'url':link.url}, endpoint='execute', args={'lua_source': src})
+        if len(self.via_page_url_regex) == 2:
+            le = LinkExtractor(allow = [r"%s"%self.via_page_url_regex[1]])
             for link in le.extract_links(response):
-                yield SplashRequest(url=link.url, callback=self.parse_single_page, meta={'url':link.url, 'single_regex':single_regex, 'via_regex':via_regex})
-        if len(via_regex) == 3:
-            le = LinkExtractor(allow = [r"%s"%regex for regex in via_regex])
+                yield SplashRequest(url=link.url, callback=self.parse_single_page, meta={'url':link.url}, endpoint='execute', args={'lua_source': src})
+        if len(self.via_page_url_regex) == 3:
+            le = LinkExtractor(allow = [r"%s"%regex for regex in self.via_page_url_regex])
             for link in le.extract_links(response):
-                yield SplashRequest(url=link.url, callback=self.parse_multiple_via_pages, meta={'url':link.url, 'single_regex':single_regex, 'via_regex':via_regex})
+                yield SplashRequest(url=link.url, callback=self.parse_multiple_via_pages, meta={'url':link.url}, endpoint='execute', args={'lua_source': src})
 
     def parse_multiple_via_pages(self, response):
-        single_regex = response.meta.get('single_regex')
-        via_regex = response.meta.get('via_regex')
-        le = LinkExtractor(allow = [r"%s"%regex for regex in via_regex])
+        response = HtmlResponse(url=self.shops_root_url, body=response.body)
+        le = LinkExtractor(allow = [r"%s"%regex for regex in self.via_page_url_regex])
         for link in le.extract_links(response):
-                yield scrapy.Request(url=link.url, callback=self.parse_single_page, meta={'url':link.url, 'single_regex':single_regex, 'via_regex':via_regex})
+                yield scrapy.Request(url=link.url, callback=self.parse_single_page)
 
     def parse_single_page(self, response):
-        single_regex = response.meta.get('single_regex')
-        le = LinkExtractor(allow = [r"%s"%single_regex])
+        response = HtmlResponse(url=self.shops_root_url, body=response.body)
+        le = LinkExtractor(allow = [r"%s"%self.single_shop_url_regex])
         for link in le.extract_links(response):
-            yield SplashRequest(url=link.url, callback=self.parse_output, meta={'url':link.url, 'single_regex':single_regex})
+            yield SplashRequest(url=link.url, callback=self.parse_output, meta={'url':link.url})
 
     def parse_output(self, response):
             url = response.meta.get('url')

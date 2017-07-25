@@ -13,14 +13,14 @@ from pkg_resources import resource_filename
 from shop_crawler.items import ShopCrawlerItem
 
 
-file_name = resource_filename('shop_crawler', 'spiders/sample_21site_utf8.csv')
+#file_name = resource_filename('shop_crawler', 'spiders/sample_21site_utf8.csv')
 
 
 src = """
 function main(splash)
   local url = splash.args.url
   assert(splash:go(url))
-  splash:wait(5)
+  splash:wait(10)
   return {
     html = splash:html()
   }
@@ -72,22 +72,20 @@ class ShopSpider(scrapy.Spider):
       self.single_shop_url_regex = kwargs.get('Single_shop_url_regex')
 
     def start_requests(self):
-        yield scrapy.Request(self.shops_root_url, self.parse)
+        yield SplashRequest(self.shops_root_url, self.parse, endpoint='execute', args={'lua_source': src})
 
     def parse(self, response):
+        response = HtmlResponse(url=self.shops_root_url, body=response.body)
         if self.via_page_url_regex[0] == "Null":
-            if "dunnbrothers" not in self.shops_root_url:
-                le = LinkExtractor(allow = [r"%s"%self.single_shop_url_regex])
-                for link in le.extract_links(response):
-                    yield SplashRequest(url=link.url, callback=self.parse_output, meta={'url':link.url})
-            else:
-                 yield SplashRequest(url=self.shops_root_url, callback=self.parse_ajax_pages, endpoint='execute', args={'lua_source': src})
+          le = LinkExtractor(allow = [r"%s"%self.single_shop_url_regex])
+          for link in le.extract_links(response):
+              yield SplashRequest(url=link.url, callback=self.parse_output, meta={'url':link.url})
         else:
             if self.via_page_url_regex:
                 le = LinkExtractor(allow = [r"%s"%self.via_page_url_regex[0]])
                 for link in le.extract_links(response):
-                    yield SplashRequest(url=link.url, callback=self.parse_via_pages)
-                    
+                    yield SplashRequest(url=link.url, callback=self.parse_via_pages, endpoint='execute', args={'lua_source': src})
+
     def parse_ajax_pages(self, response):
         response = HtmlResponse(url=self.shops_root_url, body=response.body)
         le = LinkExtractor(allow = [r"%s"%self.single_shop_url_regex])
@@ -95,25 +93,28 @@ class ShopSpider(scrapy.Spider):
             yield SplashRequest(url=link.url, callback=self.parse_output, meta={'url':link.url})
         
     def parse_via_pages(self, response):
+        response = HtmlResponse(url=self.shops_root_url, body=response.body)
         if len(self.via_page_url_regex) == 1:
             le = LinkExtractor(allow = [r"%s"%self.single_shop_url_regex])
             for link in le.extract_links(response):
-                yield SplashRequest(url=link.url, callback=self.parse_output, meta={'url':link.url})
+                yield SplashRequest(url=link.url, callback=self.parse_output, meta={'url':link.url}, endpoint='execute', args={'lua_source': src})
         if len(self.via_page_url_regex) == 2:
             le = LinkExtractor(allow = [r"%s"%self.via_page_url_regex[1]])
             for link in le.extract_links(response):
-                yield SplashRequest(url=link.url, callback=self.parse_single_page, meta={'url':link.url})
+                yield SplashRequest(url=link.url, callback=self.parse_single_page, meta={'url':link.url}, endpoint='execute', args={'lua_source': src})
         if len(self.via_page_url_regex) == 3:
             le = LinkExtractor(allow = [r"%s"%regex for regex in self.via_page_url_regex])
             for link in le.extract_links(response):
-                yield SplashRequest(url=link.url, callback=self.parse_multiple_via_pages, meta={'url':link.url})
+                yield SplashRequest(url=link.url, callback=self.parse_multiple_via_pages, meta={'url':link.url}, endpoint='execute', args={'lua_source': src})
 
     def parse_multiple_via_pages(self, response):
+        response = HtmlResponse(url=self.shops_root_url, body=response.body)
         le = LinkExtractor(allow = [r"%s"%regex for regex in self.via_page_url_regex])
         for link in le.extract_links(response):
                 yield scrapy.Request(url=link.url, callback=self.parse_single_page)
 
     def parse_single_page(self, response):
+        response = HtmlResponse(url=self.shops_root_url, body=response.body)
         le = LinkExtractor(allow = [r"%s"%self.single_shop_url_regex])
         for link in le.extract_links(response):
             yield SplashRequest(url=link.url, callback=self.parse_output, meta={'url':link.url})

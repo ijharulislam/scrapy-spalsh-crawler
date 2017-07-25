@@ -90,7 +90,7 @@ ROBOTSTXT_OBEY = True
 #HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 
 # Spalash settings
-SPLASH_URL = 'https://px5fhagq-splash.scrapinghub.com/'
+SPLASH_URL = 'https://px5fhagq-splash.scrapinghub.com/?max-timeout=3600'
 
 DOWNLOADER_MIDDLEWARES = {
     'scrapy_splash.SplashCookiesMiddleware': 723,
