@@ -110,9 +110,7 @@ class ShopSpider(scrapy.Spider):
               link_index = 0
               for link in all_links:
                 link_index = link_index + 1
-                match = re.search(r'%s'%self.via_page_url_regex[1], link)
-                if match:
-                  yield SplashRequest(url=url, callback=self.parse_second_via_page, endpoint='execute', args={'lua_source': script,'link_index':link_index})
+                yield SplashRequest(url=url, callback=self.parse_second_via_page, endpoint='execute', args={'lua_source': script,'link_index':link_index})
         
     def parse_second_via_page(self, response):
         if response.data["results"]:
@@ -125,9 +123,7 @@ class ShopSpider(scrapy.Spider):
             link_index = 0
             for link in all_links:
               link_index = link_index + 1
-              match = re.search(r'%s'%self.single_shop_url_regex, link)
-              if match:
-                yield SplashRequest(url=url, callback=self.parse_single_page, endpoint='execute', args={'lua_source': script,'link_index':link_index})
+              yield SplashRequest(url=url, callback=self.parse_single_page, endpoint='execute', args={'lua_source': script,'link_index':link_index})
 
 
     def parse_single_page(self, response):
