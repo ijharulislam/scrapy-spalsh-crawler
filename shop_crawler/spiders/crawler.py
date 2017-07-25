@@ -27,30 +27,6 @@ end
 
 """
 
-script = """
-treat = require("treat")
-function main(splash)
-  local url = splash.args.url
-  local link_index = splash.args.link_index
-  assert(splash:go(url))
-  local links = splash:select_all('a[onclick]')
-  local results = {}
-  for i, v in ipairs( links ) do
-    if i == link_index then
-        obj = {}
-        links[link_index]:click()
-        splash:wait(5)
-        obj["html"] = splash:html()
-        obj["url"] = splash:evaljs("window.location.href")
-        results[#results+1] = obj
-    end
-  end
-  return {
-    results = treat.as_array(results),
-  }
-end
-"""
-
 class ShopSpider(scrapy.Spider):
     name = "shops"
     http_user = '59cad0345f804f3faf405a087e3faa5d'
